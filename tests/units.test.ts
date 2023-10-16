@@ -4,6 +4,12 @@ import { MockRepo, mockRepo } from "./database.mock";
 import { log } from "../utils";
 import { Database } from "../database";
 import { testFetchedAttribute } from "./attributes.test";
+import {
+  AnyAttribute,
+  AttributeCreate,
+  CommentAttribute,
+  LabelAttribute
+} from "../types/attributes";
 
 const testStoredUnit = (sent: UnitCreate, stored: UnitCreateResponse) => {
   expect(stored.id).toBeDefined()
@@ -68,9 +74,19 @@ const testFetchedUnit = (sent: UnitCreate, stored: UnitCreateResponse, fetched: 
   }
 }
 
+const testAddedAttribute = (updated: Unit | null, attributeToAdd: AttributeCreate<AnyAttribute>) => {
+  expect(updated).not.toBeNull()
+  updated = updated as Unit;
+  log({ updated, attributeToAdd })
+  const addedAttribute = (updated.attributes ?? []).find(attribute => attribute.type === attributeToAdd.type) ?? null;
+  testFetchedAttribute(attributeToAdd, addedAttribute);
+}
+
 const runUnitTests = (db: Database, sentUnit: UnitCreate, unitName: string) => {
   let storedUnit: UnitCreateResponse;
   let fetchedUnit: Unit | null;
+  let addedAttribute: AttributeCreate<AnyAttribute>;
+
   describe(`Unit ${unitName}`, () => {
     test("stored", () => {
       storedUnit = db.storeUnit(sentUnit);
@@ -79,6 +95,17 @@ const runUnitTests = (db: Database, sentUnit: UnitCreate, unitName: string) => {
     test("fetched", () => {
       fetchedUnit = db.fetchUnit(storedUnit.id)
       testFetchedUnit(sentUnit, storedUnit, fetchedUnit)
+    })
+    test("added comment attribute", () => {
+      const unitLabel = ((sentUnit.attributes ?? []).find((attribute) =>
+        typeof attribute !== "string" && attribute.type === "label"
+      ) as AttributeCreate<LabelAttribute> | undefined)?.label;
+      addedAttribute = (unitLabel
+        ? {type: "comment", comment: `Comment: Unit with label: ${unitLabel}`}
+        : mockRepo.attributes.comment) as AttributeCreate<CommentAttribute>;
+
+      fetchedUnit = db.addAttributeToUnit(storedUnit.id, addedAttribute)
+      testAddedAttribute(fetchedUnit, addedAttribute)
     })
   })
 }

@@ -1,9 +1,10 @@
 import {
-  AddressAttribute, AnyAttribute, Attribute,
-  AttributeCreate, AttributeType,
-  LabelAttribute, PriceAttribute
+  AddressAttribute,
+  AttributeCreate,
+  CommentAttribute,
+  LabelAttribute,
+  PriceAttribute
 } from "../types/attributes";
-import { jest } from "@jest/globals";
 import { UnitCreate } from "../types/units";
 
 export type MockRepo = {
@@ -11,6 +12,7 @@ export type MockRepo = {
     address: AttributeCreate<AddressAttribute>;
     label: AttributeCreate<LabelAttribute>;
     price: AttributeCreate<PriceAttribute>;
+    comment: AttributeCreate<CommentAttribute>;
   };
   units: {
     [k: string]: UnitCreate;
@@ -35,6 +37,10 @@ export const mockRepo: MockRepo = {
       type: "price",
       price: 100000,
     },
+    comment: {
+      type: "comment",
+      comment: "This is a comment",
+    }
   },
   units: {},
 }

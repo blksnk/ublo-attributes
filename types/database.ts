@@ -1,6 +1,8 @@
 import {
   AddressAttribute,
-  AnyAttribute, Attribute, AttributeType,
+  AnyAttribute,
+  AttributeType,
+  CommentAttribute,
   LabelAttribute,
   PriceAttribute
 } from "./attributes";
@@ -16,14 +18,10 @@ export type AttributeRepository = {
   address: AttributeMap<AddressAttribute>;
   label: AttributeMap<LabelAttribute>;
   price: AttributeMap<PriceAttribute>;
+  comment: AttributeMap<CommentAttribute>
 }
+
 
 export type AttributeMapping = [AttributeType, uuid]
 
 export type AttributeMappingMap = Map<uuid, AttributeMapping>
-
-export type AttributeTypeMap<T extends AttributeType> =
-  T extends "address" ? AddressAttribute :
-    T extends "label"? LabelAttribute :
-      T extends "price" ? PriceAttribute :
-        Attribute;

@@ -1,9 +1,10 @@
-import {describe, expect, test} from '@jest/globals';
+import { describe, expect, test } from '@jest/globals';
 import { Database } from "../database";
 import { MockRepo, mockRepo } from "./database.mock";
 
 import { runAllUnitTests } from "./units.test";
 import { runAllAttributeTests } from "./attributes.test";
+import { log } from "../utils";
 
 
 const database = new Database();
@@ -21,5 +22,10 @@ describe("Database", () => {
         type: "unsupported"
       } as unknown as MockRepo["attributes"]["address"])).toThrow()
     })
+  })
+
+  test("logs database", () => {
+
+    expect(() => log({ database })).not.toThrow()
   })
 })

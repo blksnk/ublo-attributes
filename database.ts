@@ -2,17 +2,22 @@
 import { createUuid } from "./utils";
 import type {
   AddressAttribute,
-  AnyAttribute, Attribute,
-  AttributeCreate, AttributeType, LabelAttribute, PriceAttribute
+  AnyAttribute,
+  AttributeCreate,
+  AttributeType,
+  CommentAttribute,
+  LabelAttribute,
+  PriceAttribute
 } from "./types/attributes";
 import type { DatabaseUnit, Unit, UnitCreate } from "./types/units";
 import type {
   AttributeMapping,
   AttributeMappingMap,
-  AttributeRepository, AttributeTypeMap,
+  AttributeRepository,
   UnitDatabaseMap, uuid
 } from "./types/database";
 import { UnitCreateResponse } from "./types/units";
+import { AttributeTypes } from "./types/attributes";
 
 export class Database {
   units: UnitDatabaseMap;
@@ -22,11 +27,7 @@ export class Database {
   constructor() {
     this.units = new Map();
     this.attributeMap = new Map();
-    this.attributeRepository = {
-      address: new Map(),
-      label: new Map(),
-      price: new Map(),
-    }
+    this.attributeRepository = Object.fromEntries(AttributeTypes.map(type => [type, new Map()])) as unknown as AttributeRepository;
   }
 
   public storeAttribute<TAttribute extends AnyAttribute>(createAttribute: AttributeCreate<TAttribute>): TAttribute {
@@ -34,7 +35,8 @@ export class Database {
     const attribute = {
       ...createAttribute,
       id: attributeId
-    };
+    } as TAttribute;
+
     switch(attribute.type) {
       case "address":
         this.attributeRepository.address.set(attributeId, attribute as unknown as AddressAttribute);
@@ -44,6 +46,9 @@ export class Database {
         break;
       case "price":
         this.attributeRepository.price.set(attributeId, attribute as unknown as PriceAttribute);
+        break;
+      case "comment":
+        this.attributeRepository.comment.set(attributeId, attribute as unknown as CommentAttribute);
         break;
       default: throw new Error("Unknown attribute type");
     }
@@ -102,7 +107,10 @@ export class Database {
       console.warn(`Attribute with type ${attributeType} & id ${attributeId} not found`);
       return null;
     }
-    return attribute as TAttribute;
+    return {
+      ...attribute,
+      id: attributeMappingId,
+    } as TAttribute;
   }
 
   public fetchUnit(unitId: uuid): Unit | null {
@@ -133,7 +141,7 @@ export class Database {
       const map = this.attributeRepository[type];
       for (let value of map.values()) {
         if(i >= l) break;
-        attributes.push(value)
+        attributes.push(value as AnyAttribute)
         i++
       }
       return attributes;
@@ -146,5 +154,65 @@ export class Database {
       i++
     }
     return attributes;
+  }
+
+  private addAttributeMapIdToUnit(unitId: uuid, attributeMapId: uuid) {
+    const storedAttributeMapping = this.attributeMap.get(attributeMapId)
+    if(!storedAttributeMapping) {
+      console.error(`No attributeMapping found with id ${ attributeMapId }`);
+      return null;
+    }
+    const storedUnit = this.units.get(unitId);
+    if(!storedUnit) {
+      console.error(`No unit found with id ${ unitId }}`)
+      return null;
+    }
+
+    const hasSameTypeAttribute = storedUnit.attributesIds && storedUnit.attributesIds.some(attributeId => {
+      const mapping = this.attributeMap.get(attributeId);
+      if(!mapping) return false;
+      const [attributeType] = mapping;
+      return attributeType === storedAttributeMapping[0];
+    })
+    if(hasSameTypeAttribute) {
+      console.error(`Unit already as attribute with type ${storedAttributeMapping[0]}`);
+      return null;
+    }
+
+    const unitAttributeIds = [
+      ...(storedUnit.attributesIds ?? []),
+      attributeMapId,
+    ]
+    const updatedUnit = {
+      ...storedUnit,
+      attributesIds: unitAttributeIds,
+    }
+    this.units.set(unitId, updatedUnit);
+
+    return this.fetchUnit(unitId);
+  }
+
+  public addAttributeToUnit<TAttribute extends AnyAttribute>(unitId: uuid, createAttributeOrId: AttributeCreate<TAttribute> | uuid): Unit | null {
+    // try adding id if provided
+    if(typeof createAttributeOrId === "string") {
+      return this.addAttributeMapIdToUnit(unitId, createAttributeOrId);
+    }
+
+    const unit = this.fetchUnit(unitId)
+    if(!unit) {
+      console.error(`No unit found with id ${ unitId }`);
+      return null;
+    }
+    // abort if unit already has same attribute;
+    const hasSameTypeAttribute = unit.attributes && unit.attributes.some(attribute => attribute.type === createAttributeOrId.type);
+    if(hasSameTypeAttribute) {
+      console.error(`Unit already has attribute with type ${ createAttributeOrId.type }`);
+      return null;
+    }
+    // create new attribute
+    const storedAttribute = this.storeAttribute(createAttributeOrId);
+
+    // add its id to unit
+    return this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
   }
 }
