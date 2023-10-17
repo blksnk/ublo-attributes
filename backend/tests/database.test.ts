@@ -4,7 +4,7 @@ import { MockRepo, mockRepo } from "./database.mock";
 
 import { runAllUnitTests } from "./units.test";
 import { runAllAttributeTests } from "./attributes.test";
-import { log } from "../utils";
+import { log } from "../../utils";
 
 
 const database = new Database();

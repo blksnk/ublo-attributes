@@ -4,8 +4,8 @@ import {
   CommentAttribute,
   LabelAttribute,
   PriceAttribute
-} from "../types/attributes";
-import { UnitCreate } from "../types/units";
+} from "../../types/attributes";
+import { UnitCreate } from "../../types/units";
 
 export type MockRepo = {
   attributes: {

@@ -1,7 +1,7 @@
-import { Unit, UnitCreate, UnitCreateResponse } from "../types/units";
+import { Unit, UnitCreate, UnitCreateResponse } from "../../types/units";
 import { describe, expect, test } from "@jest/globals";
 import { MockRepo, mockRepo } from "./database.mock";
-import { log } from "../utils";
+import { log } from "../../utils";
 import { Database } from "../database";
 import { testFetchedAttribute } from "./attributes.test";
 import {
@@ -9,7 +9,7 @@ import {
   AttributeCreate,
   CommentAttribute,
   LabelAttribute
-} from "../types/attributes";
+} from "../../types/attributes";
 
 const testStoredUnit = (sent: UnitCreate, stored: UnitCreateResponse) => {
   expect(stored.id).toBeDefined()

@@ -1,5 +1,5 @@
 
-import { createUuid } from "./utils";
+import { createUuid } from "../utils";
 import type {
   AddressAttribute,
   AnyAttribute,
@@ -8,16 +8,16 @@ import type {
   CommentAttribute,
   LabelAttribute,
   PriceAttribute
-} from "./types/attributes";
-import type { DatabaseUnit, Unit, UnitCreate } from "./types/units";
+} from "../types/attributes";
+import type { DatabaseUnit, Unit, UnitCreate } from "../types/units";
 import type {
   AttributeMapping,
   AttributeMappingMap,
   AttributeRepository,
   UnitDatabaseMap, uuid
-} from "./types/database";
-import { UnitCreateResponse } from "./types/units";
-import { AttributeTypes } from "./types/attributes";
+} from "../types/database";
+import { UnitCreateResponse } from "../types/units";
+import { AttributeTypes } from "../types/attributes";
 
 export class Database {
   units: UnitDatabaseMap;

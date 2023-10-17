@@ -1,4 +1,4 @@
-import { AnyAttribute, AttributeCreate } from "../types/attributes";
+import { AnyAttribute, AttributeCreate } from "../../types/attributes";
 import { describe, expect, test } from "@jest/globals";
 import { Database } from "../database";
 import { MockRepo, mockRepo } from "./database.mock";
