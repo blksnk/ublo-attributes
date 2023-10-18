@@ -1,17 +1,19 @@
-import { snakeCase } from "lodash";
-import { Sql } from "postgres";
+import { snakeCase, camelCase } from "lodash";
+import { Client } from "pg";
 import { uuid } from "../../types/database";
-import { log } from "../../utils";
 
 export const stringifyValue = (value: unknown | undefined | null): string => {
   const t = typeof value;
-  if (value === null || t === "undefined" || t === "function" || t === "symbol") return "NULL";
   if ( t === "number" || t === "boolean" || t === "bigint") return String(value);
+  const s = (() => {
+  if (value === null || t === "undefined" || t === "function" || t === "symbol") return "NULL";
   if (t === "object") {
     if (Array.isArray(value) && value.length === 0) return "NULL";
     return JSON.stringify(value);
   }
   return value as string;
+  })()
+  return s === "NULL" ? s : `'${s}'`
 }
 
 export const formatKeys = (obj: Record<string, unknown>, omit: string[] = [], prepend: string[] = []): string[] => {
@@ -32,8 +34,24 @@ export const formatValues = (obj: Record<string, unknown>, omit: string[] = [], 
   ]
 }
 
+export const formatColumnPayload = (columns: string[]) => {
+  return `(${columns.join(', ')})`
+}
+
+export const formatValuePayload = (values: string[]) => {
+  return `VALUES(${values.join(', ')})`
+}
+
+export const formatUpdatePayload = (columns: string[], values: string[]) => {
+  return columns.map((col, i) => `${col} = ${values[i]}`).join(', ')
+}
+
+export const formatRawResponse = <TEntity extends Record<string, unknown>>(raw: Record<string, unknown>) => {
+  return Object.fromEntries(Object.entries(raw).map(([key, value]) => [camelCase(key), value])) as TEntity;
+}
+
 export const insertOne = async <TEntity extends Record<string, unknown>>(
-  sql: Sql,
+  sql: Client,
   table: string,
   entityId: uuid,
   entity: TEntity,
@@ -41,14 +59,10 @@ export const insertOne = async <TEntity extends Record<string, unknown>>(
   idColumnName = "id"
 ): Promise<boolean> => {
   try {
-    log({ sql, table, entityId, entity, omit, idColumnName })
     const o = omit.includes(idColumnName) ? omit : [...omit, idColumnName];
-    const columns = formatKeys(entity, o,[idColumnName, "created_at"])
-    const values = formatValues(entity, o, [entityId, "now()"])
-    await sql`
-    INSERT INTO ${table} ${sql(columns)}
-    values ${sql(values)}
-  `;
+    const columns = formatColumnPayload(formatKeys(entity, o,[idColumnName, "created_at"]))
+    const values = formatValuePayload(formatValues(entity, o, [entityId, "now()"]))
+    await sql.query(`INSERT INTO ${table} ${columns} ${values}`)
     return true;
   } catch(e) {
     console.error(e);
@@ -56,13 +70,10 @@ export const insertOne = async <TEntity extends Record<string, unknown>>(
   }
 }
 
-export const selectOne = async <TEntity extends object>(sql: Sql, table: string, entityId: uuid, idColumnName = "id"): Promise<TEntity | null> => {
+export const selectOne = async <TEntity extends object>(sql: Client, table: string, entityId: uuid, idColumnName = "id"): Promise<TEntity | null> => {
   try {
-    const [ entity ] = await sql<TEntity[]>`
-      SELECT * from ${table}
-      WHERE ${idColumnName} = ${entityId}
-    `
-    return entity ?? null;
+    const res = await sql.query(`SELECT * from ${table} WHERE ${idColumnName} = '${entityId}'`)
+    return res.rows ? formatRawResponse<TEntity>(res.rows[0]) : null;
   } catch(e) {
     console.error(e);
     return null;
@@ -70,7 +81,7 @@ export const selectOne = async <TEntity extends object>(sql: Sql, table: string,
 }
 
 export const updateOne = async <TEntity extends Record<string, unknown>>(
-  sql: Sql,
+  sql: Client,
   table: string,
   entityId: uuid,
   update: Partial<TEntity>,
@@ -82,13 +93,8 @@ export const updateOne = async <TEntity extends Record<string, unknown>>(
     const omit = unsafe ? [] : ["id"];
     const columns = formatKeys(update, omit, ["updated_at"]);
     const values = formatValues(update, omit, ["now()"]);
-    const payload = Object.fromEntries(columns.map((col, i) => [col, values[i]]))
-    await sql`
-      UPDATE ${table} SET ${
-        sql(payload, ...columns)
-      }
-      WHERE ${idColumnName} = ${entityId};
-    `
+    await sql.query(`UPDATE ${table} SET ${formatUpdatePayload(columns, values)} WHERE ${idColumnName} = '${entityId}'`)
+    return true;
   }
   catch(e) {
     console.error(e)

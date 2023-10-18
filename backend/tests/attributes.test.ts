@@ -2,8 +2,10 @@ import { AnyAttribute, AttributeCreate } from "../types/attributes";
 import { describe, expect, test } from "@jest/globals";
 import { MockRepo, mockRepo } from "./database.mock";
 import { DatabaseShared } from "../types/database";
+import { log } from "../utils";
 
 const testAttributeFields = <TAttribute extends AnyAttribute>(sent: AttributeCreate<TAttribute>, fetched: TAttribute) => {
+  log({sent, fetched})
   Object.keys(sent).forEach((key) => {
     const k = key as keyof AttributeCreate<TAttribute>
     expect(sent[k]).toEqual((fetched as TAttribute)[k]);
@@ -32,7 +34,6 @@ const runAttributeTests = (
   describe(`Attribute ${attributeName}`, () => {
     test("stored", async () => {
       storedAttribute = await db.storeAttribute(sentAttribute);
-      console.log(storedAttribute)
       testStoredAttribute(sentAttribute, storedAttribute);
     })
     test("fetched", async () => {

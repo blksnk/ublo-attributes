@@ -1,20 +1,10 @@
-
-import type {
-  AnyAttribute,
-  AttributeCreate,
-} from "../types/attributes";
-import type {
-  DatabaseUnit,
-  Unit,
-  UnitCreate
-} from "../types/units";
-import type {
-  uuid
-} from "../types/database";
+import type { AnyAttribute, AttributeCreate, } from "../types/attributes";
+import type { DatabaseUnit, Unit, UnitCreate } from "../types/units";
 import { UnitCreateResponse } from "../types/units";
+import type { uuid } from "../types/database";
+import { DatabaseShared } from "../types/database";
 import { PsqlClient } from "../psql/client";
 import { asyncSome } from "../utils";
-import { DatabaseShared } from "../types/database";
 
 export class PsqlDatabase implements DatabaseShared {
   client: PsqlClient;
@@ -47,6 +37,7 @@ export class PsqlDatabase implements DatabaseShared {
     return {
       ...attribute,
       id: attributeMappingId,
+      type: attributeMapping[0],
     } as AnyAttribute;
   }
 

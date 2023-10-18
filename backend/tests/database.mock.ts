@@ -27,7 +27,7 @@ export const mockRepo: MockRepo = {
       street: "street",
       city: "city",
       zip: "zip",
-      country: "country",
+      country: "FR",
     },
     label: {
       type: "label",

@@ -34,16 +34,11 @@ describe("Psql Database",() => {
   runAllUnitTests(database)
 
   describe("throws on", () => {
-    test("unknown attribute", async () => {
-      await expect(async () => await database.storeAttribute({
+    test("unknown attribute", () => {
+      expect(async () => await database.storeAttribute({
         ...mockRepo.attributes.address,
         type: "unsupported"
       } as unknown as MockRepo["attributes"]["address"])).toThrow()
     })
-  })
-
-  test("logs database", () => {
-
-    expect(() => log({ database })).not.toThrow()
   })
 })

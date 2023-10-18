@@ -3,41 +3,41 @@ import {
   AttributeType, AttributeTypes
 } from "../../types/attributes";
 import { AttributeMapping, uuid } from "../../types/database";
-import { Sql } from "postgres";
+import { Client } from "pg";
 import {
   insertOne,
   selectOne, updateOne
 } from "./queries.utils";
 
-export const insertAttributeMapping = async (sql: Sql, attributeMappingId: uuid, attributeType: AttributeType, attributeId: uuid) => {
+export const insertAttributeMapping = async (sql: Client, attributeMappingId: uuid, attributeType: AttributeType, attributeId: uuid) => {
   return await insertOne(sql, "attributes_map", attributeMappingId, {attributeType, attributeId})
 }
 
-export const retrieveAttributeMapping = async (sql: Sql, attributeMappingId: uuid) => {
-  return await selectOne<AttributeMapping>(sql, "attributes_map", attributeMappingId);
+export const retrieveAttributeMapping = async (sql: Client, attributeMappingId: uuid): Promise<AttributeMapping | null> => {
+  const res = await selectOne<{attributeType: AttributeType, attributeId: uuid}>(sql, "attributes_map", attributeMappingId);
+  return res ? [res.attributeType, res.attributeId] : null;
+
 }
 // never allow updating a mapping's attribute_type without changing its attribute_id. May cause type mismatch
-export const updateAttributeMapping = async (sql: Sql, attributeMappingId: uuid, attributeType: AttributeType, attributeId: uuid) => {
+export const updateAttributeMapping = async (sql: Client, attributeMappingId: uuid, attributeType: AttributeType, attributeId: uuid) => {
   return await updateOne(sql, "attributes_map", attributeMappingId, {attributeType, attributeId})
 }
 
-export const insertAttribute = async (sql: Sql, attributeId: uuid, attribute: AttributeCreate<AnyAttribute>) => {
+export const insertAttribute = async (sql: Client, attributeId: uuid, attribute: AttributeCreate<AnyAttribute>) => {
   if (!attribute.type || !AttributeTypes.includes(attribute.type)) {
-    console.error("Tried to create an attribute with unknown type: " + attribute.type ?? "none");
-    return false;
+    throw new Error("Tried to create an attribute with unknown type: " + attribute.type ?? "none");
   }
   const table = `attribute_${attribute.type}`;
   return await insertOne(sql, table, attributeId, attribute, ["type"]);
 }
 
-export const retrieveAttribute = async <TAttribute extends AnyAttribute>(sql: Sql, attributeMapping: AttributeMapping) => {
+export const retrieveAttribute = async <TAttribute extends AnyAttribute>(sql: Client, attributeMapping: AttributeMapping) => {
   return await selectOne<TAttribute>(sql, `attribute_${attributeMapping[0]}`, attributeMapping[1]);
 }
 
-export const updateAttribute = async <TAttribute extends AnyAttribute>(sql: Sql, attributeId: uuid, update: Partial<TAttribute>) => {
+export const updateAttribute = async <TAttribute extends AnyAttribute>(sql: Client, attributeId: uuid, update: Partial<TAttribute>) => {
   if (!update.type || !AttributeTypes.includes(update.type)) {
-    console.error("Tried to update an attribute with unknown type: " + update.type ?? "none");
-    return false;
+    throw new Error("Tried to update an attribute with unknown type: " + update.type ?? "none");
   }
 
   const table = `attribute_${update.type}`;
