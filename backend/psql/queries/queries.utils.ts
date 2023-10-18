@@ -31,10 +31,66 @@ export const formatValues = (obj: Record<string, unknown>, omit: string[] = [], 
   ]
 }
 
+export const insertOne = async <TEntity extends Record<string, unknown>>(
+  sql: Sql,
+  table: string,
+  entityId: uuid,
+  entity: TEntity,
+  omit: string[] = ["id"],
+  idColumnName = "id"
+): Promise<boolean> => {
+  try {
+    const o = omit.includes(idColumnName) ? omit : [...omit, idColumnName];
+    const columns = formatKeys(entity, o,[idColumnName, "created_at"])
+    const values = formatValues(entity, o, [entityId, sql`now()` as string])
+    await sql`
+    INSERT INTO ${table} ${sql(columns)}
+    values ${sql(values)}
+  `;
+    return true;
+  } catch(e) {
+    console.error(e);
+    return false;
+  }
+}
+
 export const selectOne = async <TEntity extends unknown>(sql: Sql, table: string, entityId: uuid, idColumnName = "id"): Promise<TEntity | null> => {
-  const [ entity ] = sql<TEntity[]>`
-    SELECT * from ${table}
-    WHERE ${idColumnName} = ${entityId}
-  `
-  return entity ?? null;
+  try {
+    const [ entity ] = sql<TEntity[]>`
+      SELECT * from ${table}
+      WHERE ${idColumnName} = ${entityId}
+    `
+    return entity ?? null;
+  } catch(e) {
+    console.error(e);
+    return null;
+  }
+}
+
+export const updateOne = async <TEntity extends Record<string, unknown>>(
+  sql: Sql,
+  table: string,
+  entityId: uuid,
+  update: Partial<TEntity>,
+  idColumnName = "id",
+  unsafe = false
+) => {
+  try {
+    // remove id from update, add "updated_at"
+    const omit = unsafe ? [] : ["id"];
+    const columns = formatKeys(update, omit, ["updated_at"]);
+    const values = formatValues(update, omit, [sql`now()` as string]);
+    const payload = Object.fromEntries(columns.map((col, i) => [col, values[i]]))
+    await sql`
+      UPDATE ${table} SET ${
+        sql(payload, ...columns)
+      }
+      WHERE ${idColumnName} = ${entityId};
+    `
+  }
+  catch(e) {
+    console.error(e)
+    return false;
+  }
+
 }

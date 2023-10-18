@@ -1,7 +1,7 @@
 import { AnyAttribute, AttributeCreate } from "../types/attributes";
 import { describe, expect, test } from "@jest/globals";
-import { RuntimeDatabase } from "../database/runtime.database";
 import { MockRepo, mockRepo } from "./database.mock";
+import { DatabaseShared } from "../types/database";
 
 const testAttributeFields = <TAttribute extends AnyAttribute>(sent: AttributeCreate<TAttribute>, fetched: TAttribute) => {
   Object.keys(sent).forEach((key) => {
@@ -22,26 +22,26 @@ export const testFetchedAttribute = <TAttribute extends AnyAttribute>(sent: Attr
   testAttributeFields(sent, fetched as TAttribute);
 }
 
-const runAttributeTests = <TAttribute extends AnyAttribute>(
-  db: RuntimeDatabase,
-  sentAttribute: AttributeCreate<TAttribute>,
+const runAttributeTests = async (
+  db: DatabaseShared,
+  sentAttribute: AttributeCreate<AnyAttribute>,
   attributeName: string
 ) => {
-  let storedAttribute: TAttribute;
-  let fetchedAttribute: TAttribute | null;
-  describe(`Attribute ${attributeName}`, () => {
-    test("stored", () => {
-      storedAttribute = db.storeAttribute(sentAttribute);
+  let storedAttribute: AnyAttribute;
+  let fetchedAttribute: AnyAttribute | null;
+  await describe(`Attribute ${attributeName}`, async () => {
+    await test("stored", async () => {
+      storedAttribute = await db.storeAttribute(sentAttribute);
       testStoredAttribute(sentAttribute, storedAttribute);
     })
-    test("fetched", () => {
-      fetchedAttribute = db.fetchAttribute(storedAttribute.id)
+    await test("fetched", async () => {
+      fetchedAttribute = await db.fetchAttribute(storedAttribute.id)
       testFetchedAttribute(sentAttribute, fetchedAttribute)
     })
   })
 }
 
-export const runAllAttributeTests = (db: RuntimeDatabase) => {
+export const runAllAttributeTests = (db: DatabaseShared) => {
   describe("All attributes", () => {
     const keys = Object.keys(mockRepo.attributes);
     keys.forEach(key => {

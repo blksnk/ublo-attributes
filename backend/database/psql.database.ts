@@ -13,8 +13,10 @@ import type {
 } from "../types/database";
 import { UnitCreateResponse } from "../types/units";
 import { PsqlClient } from "../psql/client";
+import { asyncSome } from "../utils";
+import { DatabaseShared } from "../types/database";
 
-export class PsqlDatabase {
+export class PsqlDatabase implements DatabaseShared {
   client: PsqlClient;
 
   constructor() {
@@ -47,6 +49,8 @@ export class PsqlDatabase {
       id: attributeMappingId,
     } as AnyAttribute;
   }
+
+  // TODO: fetch all attributes
 
   public async storeUnit (unit: UnitCreate): Promise<UnitCreateResponse> {
     // store attributes and children if present,
@@ -108,63 +112,64 @@ export class PsqlDatabase {
     } as Unit;
   }
 
-  // private addAttributeMapIdToUnit(unitId: uuid, attributeMapId: uuid) {
-  //   const storedAttributeMapping = this.attributeMap.get(attributeMapId)
-  //   if(!storedAttributeMapping) {
-  //     console.error(`No attributeMapping found with id ${ attributeMapId }`);
-  //     return null;
-  //   }
-  //   const storedUnit = this.units.get(unitId);
-  //   if(!storedUnit) {
-  //     console.error(`No unit found with id ${ unitId }}`)
-  //     return null;
-  //   }
-  //
-  //   const hasSameTypeAttribute = storedUnit.attributeIds && storedUnit.attributeIds.some(attributeId => {
-  //     const mapping = this.attributeMap.get(attributeId);
-  //     if(!mapping) return false;
-  //     const [attributeType] = mapping;
-  //     return attributeType === storedAttributeMapping[0];
-  //   })
-  //   if(hasSameTypeAttribute) {
-  //     console.error(`Unit already as attribute with type ${storedAttributeMapping[0]}`);
-  //     return null;
-  //   }
-  //
-  //   const unitAttributeIds = [
-  //     ...(storedUnit.attributeIds ?? []),
-  //     attributeMapId,
-  //   ]
-  //   const updatedUnit = {
-  //     ...storedUnit,
-  //     attributeIds: unitAttributeIds,
-  //   }
-  //   this.units.set(unitId, updatedUnit);
-  //
-  //   return this.fetchUnit(unitId);
-  // }
-  //
-  // public addAttributeToUnit<TAttribute extends AnyAttribute>(unitId: uuid, createAttributeOrId: AttributeCreate<TAttribute> | uuid): Unit | null {
-  //   // try adding id if provided
-  //   if(typeof createAttributeOrId === "string") {
-  //     return this.addAttributeMapIdToUnit(unitId, createAttributeOrId);
-  //   }
-  //
-  //   const unit = this.fetchUnit(unitId)
-  //   if(!unit) {
-  //     console.error(`No unit found with id ${ unitId }`);
-  //     return null;
-  //   }
-  //   // abort if unit already has same attribute;
-  //   const hasSameTypeAttribute = unit.attributes && unit.attributes.some(attribute => attribute.type === createAttributeOrId.type);
-  //   if(hasSameTypeAttribute) {
-  //     console.error(`Unit already has attribute with type ${ createAttributeOrId.type }`);
-  //     return null;
-  //   }
-  //   // create new attribute
-  //   const storedAttribute = this.storeAttribute(createAttributeOrId);
-  //
-  //   // add its id to unit
-  //   return this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
-  // }
+  private async addAttributeMapIdToUnit(unitId: uuid, attributeMapId: uuid) {
+    const storedAttributeMapping = await this.client.retrieveAttributeMapping(attributeMapId);
+    if (!storedAttributeMapping) {
+      console.error(`No attributeMapping found with id ${ attributeMapId }`);
+      return null;
+    }
+    const storedUnit = await this.client.retrieveUnit(unitId)
+    if (!storedUnit) {
+      console.error(`No unit found with id ${ unitId }}`)
+      return null;
+    }
+
+    const hasSameTypeAttribute = await (storedUnit.attributeIds && asyncSome(storedUnit.attributeIds, async (attributeId) => {
+      const mapping = await this.client.retrieveAttributeMapping(attributeId);
+      if (!mapping) return false;
+      return mapping[0] === storedAttributeMapping[0];
+    }))
+    // abort changes & return original if unit already has same attribute;
+    if (hasSameTypeAttribute) {
+      console.error(`Unit already as attribute with type ${storedAttributeMapping[0]}`);
+      return await this.fetchUnit(unitId);
+    }
+
+    const attributeIds = [
+      ...(storedUnit.attributeIds ?? []),
+      attributeMapId,
+    ]
+    try {
+      await this.client.updateUnit(unitId, { attributeIds })
+    } catch(e) {
+      console.error("Error while adding attribute to unit " + unitId, e)
+      return await this.fetchUnit(unitId);
+    }
+
+    return await this.fetchUnit(unitId);
+  }
+
+  public async addAttributeToUnit<TAttribute extends AnyAttribute>(unitId: uuid, createAttributeOrId: AttributeCreate<TAttribute> | uuid): Promise<Unit | null> {
+    // try adding id if provided
+    if (typeof createAttributeOrId === "string") {
+      return await this.addAttributeMapIdToUnit(unitId, createAttributeOrId);
+    }
+
+    const unit = await this.fetchUnit(unitId)
+    if (!unit) {
+      console.error(`No unit found with id ${ unitId }`);
+      return null;
+    }
+    const hasSameTypeAttribute = unit.attributes && unit.attributes.some(attribute => attribute.type === createAttributeOrId.type);
+    // abort changes & return original if unit already has same attribute;
+    if (hasSameTypeAttribute) {
+      console.error(`Unit already has attribute with type ${ createAttributeOrId.type }`);
+      return unit;
+    }
+    // create new attribute
+    const storedAttribute = await this.storeAttribute(createAttributeOrId);
+
+    // add its id to unit
+    return this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
+  }
 }

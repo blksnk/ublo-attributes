@@ -3,23 +3,22 @@ import { createUuid } from "../utils";
 import type {
   AddressAttribute,
   AnyAttribute,
-  AttributeCreate,
   AttributeType,
   CommentAttribute,
   LabelAttribute,
   PriceAttribute
 } from "../types/attributes";
-import type { DatabaseUnit, Unit, UnitCreate } from "../types/units";
+import type { DatabaseUnit, Unit } from "../types/units";
 import type {
   AttributeMapping,
   AttributeMappingMap,
   AttributeRepository,
   UnitDatabaseMap, uuid
 } from "../types/database";
-import { UnitCreateResponse } from "../types/units";
 import { AttributeTypes } from "../types/attributes";
+import { DatabaseShared } from "../types/database";
 
-export class RuntimeDatabase {
+export class RuntimeDatabase implements DatabaseShared {
   units: UnitDatabaseMap;
   attributeMap: AttributeMappingMap;
   attributeRepository: AttributeRepository;
@@ -30,7 +29,7 @@ export class RuntimeDatabase {
     this.attributeRepository = Object.fromEntries(AttributeTypes.map(type => [type, new Map()])) as unknown as AttributeRepository;
   }
 
-  public storeAttribute<TAttribute extends AnyAttribute>(createAttribute: AttributeCreate<TAttribute>): TAttribute {
+  public async storeAttribute<TAttribute extends AnyAttribute>(createAttribute) {
     const attributeId = createUuid();
     const attribute = {
       ...createAttribute,
@@ -63,25 +62,25 @@ export class RuntimeDatabase {
     } as TAttribute;
   }
 
-  public storeUnit (createUnit: UnitCreate): UnitCreateResponse {
+  public async storeUnit (createUnit) {
     const unitId = createUuid();
-    const attributeIds = createUnit?.attributes?.map(attributeOrId => {
+    const attributeIds = await Promise.all(createUnit?.attributes?.map(async (attributeOrId) => {
       if(typeof attributeOrId === "string") {
         const mapResult = this.attributeMap.get(attributeOrId);
         if(mapResult) return attributeOrId
         throw new Error(`Attribute with map id ${attributeOrId} not found`);
       }
       // TODO: check for duplicates
-      return this.storeAttribute(attributeOrId).id;
-    })
-    const children = createUnit?.children?.map(childOrId => {
+      return (await this.storeAttribute(attributeOrId)).id;
+    }) ?? [])
+    const children = await Promise.all(createUnit?.children?.map(async (childOrId) => {
       if(typeof childOrId === "string") {
         const mapResult = this.units.get(childOrId);
         if(mapResult) return mapResult
         throw new Error(`Unit with id ${childOrId} not found`);
       }
-      return this.storeUnit(childOrId)
-    })
+      return await this.storeUnit(childOrId)
+    }) ?? [])
 
     const unit: DatabaseUnit = {
       id: unitId,
@@ -96,7 +95,7 @@ export class RuntimeDatabase {
     };
   }
 
-  public fetchAttribute<TAttribute extends AnyAttribute> (attributeMappingId: uuid): TAttribute | null {
+  public async fetchAttribute<TAttribute extends AnyAttribute> (attributeMappingId) {
     const mapResult = this.attributeMap.get(attributeMappingId);
     if(!mapResult) {
       console.warn(`Attribute with mapping id ${attributeMappingId} not found`);
@@ -114,17 +113,17 @@ export class RuntimeDatabase {
     } as TAttribute;
   }
 
-  public fetchUnit(unitId: uuid): Unit | null {
+  public async fetchUnit(unitId) {
     const u = this.units.get(unitId);
     if(!u) {
       console.warn(`Unit with id ${unitId} not found`);
       return null;
     }
-    const attributes = u.attributeIds
-      ?.map(attributeId => this.fetchAttribute(attributeId))
+    const attributes = (await Promise.all(u.attributeIds
+      ?.map(async (attributeId) => await this.fetchAttribute(attributeId)) ?? []))
       .filter(attribute => attribute!== null) as AnyAttribute[] | undefined;
-    const children = u.childrenIds
-      ?.map(childId => this.fetchUnit(childId))
+    const children = (await Promise.all(u.childrenIds
+      ?.map(async (childId) => await this.fetchUnit(childId)) ?? []))
       .filter(child => child !== null) as Unit[] | undefined;
     return {
       id: u.id,
@@ -156,7 +155,7 @@ export class RuntimeDatabase {
     return attributes;
   }
 
-  private addAttributeMapIdToUnit(unitId: uuid, attributeMapId: uuid) {
+  private async addAttributeMapIdToUnit(unitId: uuid, attributeMapId: uuid) {
     const storedAttributeMapping = this.attributeMap.get(attributeMapId)
     if(!storedAttributeMapping) {
       console.error(`No attributeMapping found with id ${ attributeMapId }`);
@@ -189,17 +188,17 @@ export class RuntimeDatabase {
     }
     this.units.set(unitId, updatedUnit);
 
-    return this.fetchUnit(unitId);
+    return await this.fetchUnit(unitId);
   }
 
-  public addAttributeToUnit<TAttribute extends AnyAttribute>(unitId: uuid, createAttributeOrId: AttributeCreate<TAttribute> | uuid): Unit | null {
+  public async addAttributeToUnit(unitId, createAttributeOrId) {
     // try adding id if provided
-    if(typeof createAttributeOrId === "string") {
-      return this.addAttributeMapIdToUnit(unitId, createAttributeOrId);
+    if (typeof createAttributeOrId === "string") {
+      return await this.addAttributeMapIdToUnit(unitId, createAttributeOrId);
     }
 
-    const unit = this.fetchUnit(unitId)
-    if(!unit) {
+    const unit = await this.fetchUnit(unitId)
+    if (!unit) {
       console.error(`No unit found with id ${ unitId }`);
       return null;
     }
@@ -210,10 +209,10 @@ export class RuntimeDatabase {
       return null;
     }
     // create new attribute
-    const storedAttribute = this.storeAttribute(createAttributeOrId);
+    const storedAttribute = await this.storeAttribute(createAttributeOrId);
 
     // add its id to unit
-    return this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
+    return await this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
   }
 }
 

@@ -1,13 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
-import { RuntimeDatabase } from "../database/runtime.database";
 import { MockRepo, mockRepo } from "./database.mock";
 
 import { runAllUnitTests } from "./units.test";
 import { runAllAttributeTests } from "./attributes.test";
 import { log } from "../utils";
+import { createDatabase } from "../database/index.database";
 
 
-const database = new RuntimeDatabase();
+const database = createDatabase("runtime")
 
 describe("Database", () => {
   runAllAttributeTests(database)
@@ -16,8 +16,8 @@ describe("Database", () => {
 
 
   describe("throws on", () => {
-    test("unknown attribute", () => {
-      expect(() => database.storeAttribute({
+    test("unknown attribute", async () => {
+      await expect(async () => await database.storeAttribute({
         ...mockRepo.attributes.address,
         type: "unsupported"
       } as unknown as MockRepo["attributes"]["address"])).toThrow()

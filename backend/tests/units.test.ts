@@ -2,7 +2,6 @@ import { Unit, UnitCreate, UnitCreateResponse } from "../types/units";
 import { describe, expect, test } from "@jest/globals";
 import { MockRepo, mockRepo } from "./database.mock";
 import { log } from "../utils";
-import { RuntimeDatabase } from "../database/runtime.database";
 import { testFetchedAttribute } from "./attributes.test";
 import {
   AnyAttribute,
@@ -10,6 +9,7 @@ import {
   CommentAttribute,
   LabelAttribute
 } from "../types/attributes";
+import { DatabaseShared } from "../types/database";
 
 const testStoredUnit = (sent: UnitCreate, stored: UnitCreateResponse) => {
   expect(stored.id).toBeDefined()
@@ -82,21 +82,21 @@ const testAddedAttribute = (updated: Unit | null, attributeToAdd: AttributeCreat
   testFetchedAttribute(attributeToAdd, addedAttribute);
 }
 
-const runUnitTests = (db: RuntimeDatabase, sentUnit: UnitCreate, unitName: string) => {
+const runUnitTests = async (db: DatabaseShared, sentUnit: UnitCreate, unitName: string) => {
   let storedUnit: UnitCreateResponse;
   let fetchedUnit: Unit | null;
   let addedAttribute: AttributeCreate<AnyAttribute>;
 
-  describe(`Unit ${unitName}`, () => {
-    test("stored", () => {
-      storedUnit = db.storeUnit(sentUnit);
+  await describe(`Unit ${unitName}`, async () => {
+    await test("stored", async () => {
+      storedUnit = await db.storeUnit(sentUnit);
       testStoredUnit(sentUnit, storedUnit);
     })
-    test("fetched", () => {
-      fetchedUnit = db.fetchUnit(storedUnit.id)
+    await test("fetched", async () => {
+      fetchedUnit = await db.fetchUnit(storedUnit.id)
       testFetchedUnit(sentUnit, storedUnit, fetchedUnit)
     })
-    test("added comment attribute", () => {
+    await test("added comment attribute", async () => {
       const unitLabel = ((sentUnit.attributes ?? []).find((attribute) =>
         typeof attribute !== "string" && attribute.type === "label"
       ) as AttributeCreate<LabelAttribute> | undefined)?.label;
@@ -104,13 +104,13 @@ const runUnitTests = (db: RuntimeDatabase, sentUnit: UnitCreate, unitName: strin
         ? {type: "comment", comment: `Comment: Unit with label: ${unitLabel}`}
         : mockRepo.attributes.comment) as AttributeCreate<CommentAttribute>;
 
-      fetchedUnit = db.addAttributeToUnit(storedUnit.id, addedAttribute)
+      fetchedUnit = await db.addAttributeToUnit(storedUnit.id, addedAttribute)
       testAddedAttribute(fetchedUnit, addedAttribute)
     })
   })
 }
 
-export const runAllUnitTests = (db: RuntimeDatabase) => {
+export const runAllUnitTests = (db: DatabaseShared) => {
   describe("All Units", () => {
     const keys = Object.keys(mockRepo.units);
     keys.forEach((key) => {
