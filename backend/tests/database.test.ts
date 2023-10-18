@@ -1,13 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
-import { Database } from "../database";
+import { RuntimeDatabase } from "../database/runtime.database";
 import { MockRepo, mockRepo } from "./database.mock";
 
 import { runAllUnitTests } from "./units.test";
 import { runAllAttributeTests } from "./attributes.test";
-import { log } from "../../utils";
+import { log } from "../utils";
 
 
-const database = new Database();
+const database = new RuntimeDatabase();
 
 describe("Database", () => {
   runAllAttributeTests(database)

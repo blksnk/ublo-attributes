@@ -19,7 +19,7 @@ import type {
 import { UnitCreateResponse } from "../types/units";
 import { AttributeTypes } from "../types/attributes";
 
-export class Database {
+export class RuntimeDatabase {
   units: UnitDatabaseMap;
   attributeMap: AttributeMappingMap;
   attributeRepository: AttributeRepository;
@@ -62,9 +62,10 @@ export class Database {
       id: attributeMappingId
     } as TAttribute;
   }
+
   public storeUnit (createUnit: UnitCreate): UnitCreateResponse {
     const unitId = createUuid();
-    const attributesIds = createUnit?.attributes?.map(attributeOrId => {
+    const attributeIds = createUnit?.attributes?.map(attributeOrId => {
       if(typeof attributeOrId === "string") {
         const mapResult = this.attributeMap.get(attributeOrId);
         if(mapResult) return attributeOrId
@@ -85,12 +86,12 @@ export class Database {
     const unit: DatabaseUnit = {
       id: unitId,
     }
-    if(attributesIds) unit.attributesIds = attributesIds;
+    if(attributeIds) unit.attributeIds = attributeIds;
     if(children) unit.childrenIds = children.map(({ id }) => id);
     this.units.set(unitId, unit);
     return {
       id: unitId,
-      attributesIds,
+      attributeIds,
       children,
     };
   }
@@ -119,18 +120,17 @@ export class Database {
       console.warn(`Unit with id ${unitId} not found`);
       return null;
     }
-    const attributes = u.attributesIds
+    const attributes = u.attributeIds
       ?.map(attributeId => this.fetchAttribute(attributeId))
       .filter(attribute => attribute!== null) as AnyAttribute[] | undefined;
     const children = u.childrenIds
       ?.map(childId => this.fetchUnit(childId))
       .filter(child => child !== null) as Unit[] | undefined;
-    const unit: Unit = {
+    return {
       id: u.id,
-    }
-    if(attributes) unit.attributes = attributes;
-    if(children) unit.children = children;
-    return unit
+      attributes: attributes ?? [],
+      children: children ?? [],
+    } as Unit
   }
 
   public fetchAllAttributes = (type?: AttributeType, limit?: number): AnyAttribute[] => {
@@ -168,7 +168,7 @@ export class Database {
       return null;
     }
 
-    const hasSameTypeAttribute = storedUnit.attributesIds && storedUnit.attributesIds.some(attributeId => {
+    const hasSameTypeAttribute = storedUnit.attributeIds && storedUnit.attributeIds.some(attributeId => {
       const mapping = this.attributeMap.get(attributeId);
       if(!mapping) return false;
       const [attributeType] = mapping;
@@ -180,12 +180,12 @@ export class Database {
     }
 
     const unitAttributeIds = [
-      ...(storedUnit.attributesIds ?? []),
+      ...(storedUnit.attributeIds ?? []),
       attributeMapId,
     ]
     const updatedUnit = {
       ...storedUnit,
-      attributesIds: unitAttributeIds,
+      attributeIds: unitAttributeIds,
     }
     this.units.set(unitId, updatedUnit);
 
@@ -216,3 +216,5 @@ export class Database {
     return this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
   }
 }
+
+export const db = new RuntimeDatabase();

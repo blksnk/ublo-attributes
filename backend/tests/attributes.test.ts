@@ -1,6 +1,6 @@
-import { AnyAttribute, AttributeCreate } from "../../types/attributes";
+import { AnyAttribute, AttributeCreate } from "../types/attributes";
 import { describe, expect, test } from "@jest/globals";
-import { Database } from "../database";
+import { RuntimeDatabase } from "../database/runtime.database";
 import { MockRepo, mockRepo } from "./database.mock";
 
 const testAttributeFields = <TAttribute extends AnyAttribute>(sent: AttributeCreate<TAttribute>, fetched: TAttribute) => {
@@ -23,7 +23,7 @@ export const testFetchedAttribute = <TAttribute extends AnyAttribute>(sent: Attr
 }
 
 const runAttributeTests = <TAttribute extends AnyAttribute>(
-  db: Database,
+  db: RuntimeDatabase,
   sentAttribute: AttributeCreate<TAttribute>,
   attributeName: string
 ) => {
@@ -41,7 +41,7 @@ const runAttributeTests = <TAttribute extends AnyAttribute>(
   })
 }
 
-export const runAllAttributeTests = (db: Database) => {
+export const runAllAttributeTests = (db: RuntimeDatabase) => {
   describe("All attributes", () => {
     const keys = Object.keys(mockRepo.attributes);
     keys.forEach(key => {

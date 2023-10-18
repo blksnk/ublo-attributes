@@ -1,21 +1,21 @@
-import { Unit, UnitCreate, UnitCreateResponse } from "../../types/units";
+import { Unit, UnitCreate, UnitCreateResponse } from "../types/units";
 import { describe, expect, test } from "@jest/globals";
 import { MockRepo, mockRepo } from "./database.mock";
-import { log } from "../../utils";
-import { Database } from "../database";
+import { log } from "../utils";
+import { RuntimeDatabase } from "../database/runtime.database";
 import { testFetchedAttribute } from "./attributes.test";
 import {
   AnyAttribute,
   AttributeCreate,
   CommentAttribute,
   LabelAttribute
-} from "../../types/attributes";
+} from "../types/attributes";
 
 const testStoredUnit = (sent: UnitCreate, stored: UnitCreateResponse) => {
   expect(stored.id).toBeDefined()
   if (sent.attributes && sent.attributes.length > 0) {
-    expect(stored.attributesIds).toBeDefined()
-    expect(stored.attributesIds?.length).toEqual(sent.attributes.length)
+    expect(stored.attributeIds).toBeDefined()
+    expect(stored.attributeIds?.length).toEqual(sent.attributes.length)
   }
   if (sent.children && sent.children.length > 0) {
     expect(stored.children).toBeDefined()
@@ -82,7 +82,7 @@ const testAddedAttribute = (updated: Unit | null, attributeToAdd: AttributeCreat
   testFetchedAttribute(attributeToAdd, addedAttribute);
 }
 
-const runUnitTests = (db: Database, sentUnit: UnitCreate, unitName: string) => {
+const runUnitTests = (db: RuntimeDatabase, sentUnit: UnitCreate, unitName: string) => {
   let storedUnit: UnitCreateResponse;
   let fetchedUnit: Unit | null;
   let addedAttribute: AttributeCreate<AnyAttribute>;
@@ -110,7 +110,7 @@ const runUnitTests = (db: Database, sentUnit: UnitCreate, unitName: string) => {
   })
 }
 
-export const runAllUnitTests = (db: Database) => {
+export const runAllUnitTests = (db: RuntimeDatabase) => {
   describe("All Units", () => {
     const keys = Object.keys(mockRepo.units);
     keys.forEach((key) => {
