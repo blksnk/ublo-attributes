@@ -1,6 +1,6 @@
 import { Sql } from "postgres";
 import { AttributeMapping, uuid } from "../types/database";
-import { createInstance } from "./instance";
+import instance from "./instance";
 import {
   insertAttribute,
   insertAttributeMapping,
@@ -16,7 +16,8 @@ export class PsqlClient {
   sql: Sql;
 
   constructor() {
-    this.sql = createInstance()
+    this.sql = instance;
+    console.log(this.sql)
   }
 
   public async insertAttributeMapping(attributeMapping: AttributeMapping) {

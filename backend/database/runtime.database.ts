@@ -15,8 +15,9 @@ import type {
   AttributeRepository,
   UnitDatabaseMap, uuid
 } from "../types/database";
-import { AttributeTypes } from "../types/attributes";
+import { AttributeCreate, AttributeTypes } from "../types/attributes";
 import { DatabaseShared } from "../types/database";
+import { UnitCreate, UnitCreateResponse } from "../types/units";
 
 export class RuntimeDatabase implements DatabaseShared {
   units: UnitDatabaseMap;
@@ -29,7 +30,7 @@ export class RuntimeDatabase implements DatabaseShared {
     this.attributeRepository = Object.fromEntries(AttributeTypes.map(type => [type, new Map()])) as unknown as AttributeRepository;
   }
 
-  public async storeAttribute<TAttribute extends AnyAttribute>(createAttribute) {
+  public async storeAttribute<TAttribute extends AnyAttribute>(createAttribute: AttributeCreate<TAttribute>): Promise<TAttribute> {
     const attributeId = createUuid();
     const attribute = {
       ...createAttribute,
@@ -62,7 +63,7 @@ export class RuntimeDatabase implements DatabaseShared {
     } as TAttribute;
   }
 
-  public async storeUnit (createUnit) {
+  public async storeUnit (createUnit: UnitCreate): Promise<UnitCreateResponse> {
     const unitId = createUuid();
     const attributeIds = await Promise.all(createUnit?.attributes?.map(async (attributeOrId) => {
       if(typeof attributeOrId === "string") {
@@ -95,7 +96,7 @@ export class RuntimeDatabase implements DatabaseShared {
     };
   }
 
-  public async fetchAttribute<TAttribute extends AnyAttribute> (attributeMappingId) {
+  public async fetchAttribute<TAttribute extends AnyAttribute> (attributeMappingId: uuid): Promise<TAttribute | null> {
     const mapResult = this.attributeMap.get(attributeMappingId);
     if(!mapResult) {
       console.warn(`Attribute with mapping id ${attributeMappingId} not found`);
@@ -113,7 +114,7 @@ export class RuntimeDatabase implements DatabaseShared {
     } as TAttribute;
   }
 
-  public async fetchUnit(unitId) {
+  public async fetchUnit(unitId: uuid): Promise<Unit | null> {
     const u = this.units.get(unitId);
     if(!u) {
       console.warn(`Unit with id ${unitId} not found`);
@@ -191,7 +192,10 @@ export class RuntimeDatabase implements DatabaseShared {
     return await this.fetchUnit(unitId);
   }
 
-  public async addAttributeToUnit(unitId, createAttributeOrId) {
+  public async addAttributeToUnit<TAttribute extends AnyAttribute>(
+    unitId: uuid,
+    createAttributeOrId: AttributeCreate<TAttribute> | uuid
+  ): Promise<Unit | null> {
     // try adding id if provided
     if (typeof createAttributeOrId === "string") {
       return await this.addAttributeMapIdToUnit(unitId, createAttributeOrId);

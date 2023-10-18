@@ -22,19 +22,20 @@ export const testFetchedAttribute = <TAttribute extends AnyAttribute>(sent: Attr
   testAttributeFields(sent, fetched as TAttribute);
 }
 
-const runAttributeTests = async (
+const runAttributeTests = (
   db: DatabaseShared,
   sentAttribute: AttributeCreate<AnyAttribute>,
   attributeName: string
 ) => {
   let storedAttribute: AnyAttribute;
   let fetchedAttribute: AnyAttribute | null;
-  await describe(`Attribute ${attributeName}`, async () => {
-    await test("stored", async () => {
+  describe(`Attribute ${attributeName}`, () => {
+    test("stored", async () => {
       storedAttribute = await db.storeAttribute(sentAttribute);
+      console.log(storedAttribute)
       testStoredAttribute(sentAttribute, storedAttribute);
     })
-    await test("fetched", async () => {
+    test("fetched", async () => {
       fetchedAttribute = await db.fetchAttribute(storedAttribute.id)
       testFetchedAttribute(sentAttribute, fetchedAttribute)
     })
@@ -44,7 +45,7 @@ const runAttributeTests = async (
 export const runAllAttributeTests = (db: DatabaseShared) => {
   describe("All attributes", () => {
     const keys = Object.keys(mockRepo.attributes);
-    keys.forEach(key => {
+    keys.forEach((key) => {
       const attribute = mockRepo.attributes[key as keyof MockRepo["attributes"]] as AnyAttribute;
       runAttributeTests(db, attribute, key);
     })

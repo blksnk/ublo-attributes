@@ -82,21 +82,21 @@ const testAddedAttribute = (updated: Unit | null, attributeToAdd: AttributeCreat
   testFetchedAttribute(attributeToAdd, addedAttribute);
 }
 
-const runUnitTests = async (db: DatabaseShared, sentUnit: UnitCreate, unitName: string) => {
+const runUnitTests = (db: DatabaseShared, sentUnit: UnitCreate, unitName: string) => {
   let storedUnit: UnitCreateResponse;
   let fetchedUnit: Unit | null;
   let addedAttribute: AttributeCreate<AnyAttribute>;
 
-  await describe(`Unit ${unitName}`, async () => {
-    await test("stored", async () => {
+  describe(`Unit ${unitName}`, () => {
+    test("stored", async () => {
       storedUnit = await db.storeUnit(sentUnit);
       testStoredUnit(sentUnit, storedUnit);
     })
-    await test("fetched", async () => {
+    test("fetched", async () => {
       fetchedUnit = await db.fetchUnit(storedUnit.id)
       testFetchedUnit(sentUnit, storedUnit, fetchedUnit)
     })
-    await test("added comment attribute", async () => {
+    test("added comment attribute", async () => {
       const unitLabel = ((sentUnit.attributes ?? []).find((attribute) =>
         typeof attribute !== "string" && attribute.type === "label"
       ) as AttributeCreate<LabelAttribute> | undefined)?.label;

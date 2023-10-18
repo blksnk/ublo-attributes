@@ -149,7 +149,10 @@ export class PsqlDatabase implements DatabaseShared {
     return await this.fetchUnit(unitId);
   }
 
-  public async addAttributeToUnit<TAttribute extends AnyAttribute>(unitId: uuid, createAttributeOrId: AttributeCreate<TAttribute> | uuid): Promise<Unit | null> {
+  public async addAttributeToUnit<TAttribute extends AnyAttribute>(
+    unitId: uuid,
+    createAttributeOrId: AttributeCreate<TAttribute> | uuid
+  ): Promise<Unit | null> {
     // try adding id if provided
     if (typeof createAttributeOrId === "string") {
       return await this.addAttributeMapIdToUnit(unitId, createAttributeOrId);

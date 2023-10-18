@@ -1,6 +1,7 @@
 import { snakeCase } from "lodash";
 import { Sql } from "postgres";
 import { uuid } from "../../types/database";
+import { log } from "../../utils";
 
 export const stringifyValue = (value: unknown | undefined | null): string => {
   const t = typeof value;
@@ -40,9 +41,10 @@ export const insertOne = async <TEntity extends Record<string, unknown>>(
   idColumnName = "id"
 ): Promise<boolean> => {
   try {
+    log({ sql, table, entityId, entity, omit, idColumnName })
     const o = omit.includes(idColumnName) ? omit : [...omit, idColumnName];
     const columns = formatKeys(entity, o,[idColumnName, "created_at"])
-    const values = formatValues(entity, o, [entityId, sql`now()` as string])
+    const values = formatValues(entity, o, [entityId, "now()"])
     await sql`
     INSERT INTO ${table} ${sql(columns)}
     values ${sql(values)}
@@ -54,9 +56,9 @@ export const insertOne = async <TEntity extends Record<string, unknown>>(
   }
 }
 
-export const selectOne = async <TEntity extends unknown>(sql: Sql, table: string, entityId: uuid, idColumnName = "id"): Promise<TEntity | null> => {
+export const selectOne = async <TEntity extends object>(sql: Sql, table: string, entityId: uuid, idColumnName = "id"): Promise<TEntity | null> => {
   try {
-    const [ entity ] = sql<TEntity[]>`
+    const [ entity ] = await sql<TEntity[]>`
       SELECT * from ${table}
       WHERE ${idColumnName} = ${entityId}
     `
@@ -79,7 +81,7 @@ export const updateOne = async <TEntity extends Record<string, unknown>>(
     // remove id from update, add "updated_at"
     const omit = unsafe ? [] : ["id"];
     const columns = formatKeys(update, omit, ["updated_at"]);
-    const values = formatValues(update, omit, [sql`now()` as string]);
+    const values = formatValues(update, omit, ["now()"]);
     const payload = Object.fromEntries(columns.map((col, i) => [col, values[i]]))
     await sql`
       UPDATE ${table} SET ${

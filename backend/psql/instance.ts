@@ -1,10 +1,7 @@
-import postgres, { Sql } from "postgres";
+import postgres from "postgres";
 
-export const createInstance = (): Sql => {
-  return postgres({
-    host: "localhost",
-    user: "postgres",
-    port: 5432,
-    database: "ublo-patrimoine-test",
-  })
-}
+const DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/ublo-patrimoine-test"
+
+const instance = postgres(DATABASE_URL);
+
+export default instance;
