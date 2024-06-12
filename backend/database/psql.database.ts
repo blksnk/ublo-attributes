@@ -41,6 +41,20 @@ export class PsqlDatabase implements DatabaseShared {
     } as AnyAttribute;
   }
 
+  public async deleteAttribute(attributeMappingId: uuid): Promise<boolean> {
+    const attributeMapping = await this.client.retrieveAttributeMapping(attributeMappingId);
+
+    if (!attributeMapping) throw new Error(`Attribute with mapping id ${attributeMappingId} not found`);
+
+    // delete attribute, attributeMapping and remove mapping id from unit if it contains some
+    const deleted = await Promise.all([
+      this.client.deleteAttribute(attributeMapping),
+      this.client.deleteAttributeMapping(attributeMappingId),
+      this.removeAttributeMapIdFromAllUnits(attributeMappingId),
+    ])
+    return deleted.every(d => d);
+  }
+
   // TODO: fetch all attributes
 
   public async storeUnit (unit: UnitCreate): Promise<UnitCreateResponse> {
@@ -134,7 +148,6 @@ export class PsqlDatabase implements DatabaseShared {
       await this.client.updateUnit(unitId, { attributeIds })
     } catch(e) {
       console.error("Error while adding attribute to unit " + unitId, e)
-      return await this.fetchUnit(unitId);
     }
 
     return await this.fetchUnit(unitId);
@@ -165,5 +178,38 @@ export class PsqlDatabase implements DatabaseShared {
 
     // add its id to unit
     return this.addAttributeMapIdToUnit(unitId, storedAttribute.id)
+  }
+
+  private async removeAttributeMapIdFromUnit(unitId: uuid, attributeMapId: uuid) {
+    const unit = await this.client.retrieveUnit(unitId);
+    if (!unit) {
+      throw new Error(`No unit found with id ${ unitId }`);
+    }
+    // abort if unit contains id to remove
+    if (!unit.attributeIds || !unit.attributeIds?.some(id => id === attributeMapId)) {
+      return true
+    }
+
+    const attributeIds = unit.attributeIds.filter(id => id !== attributeMapId);
+    try {
+      await this.client.updateUnit(unitId, { attributeIds })
+    } catch(e) {
+      console.error("Error while adding attribute to unit " + unitId, e)
+      return false
+    }
+
+    return true
+  }
+
+  private async removeAttributeMapIdFromAllUnits(attributeMapId: uuid) {
+    const units = await this.client.findUnits({attributeIds: [attributeMapId]})
+    if(!units || units.length === 0) return true;
+    const deleted = await Promise.all(units.map(unit => this.removeAttributeMapIdFromUnit(unit.id, attributeMapId)))
+    return deleted.every(d => d)
+  }
+
+  public async removeAttributeFromUnit(unitId: uuid, attributeMapId: uuid) {
+    await this.removeAttributeMapIdFromUnit(unitId, attributeMapId);
+    return await this.fetchUnit(unitId);
   }
 }

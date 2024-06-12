@@ -1,6 +1,8 @@
-import { AttributeMapping, uuid } from "../types/database";
+import { AttributeMapping, Conditions, uuid } from "../types/database";
 import instance from "./instance";
 import {
+  deleteAttribute,
+  deleteAttributeMapping,
   insertAttribute,
   insertAttributeMapping,
   retrieveAttribute,
@@ -10,8 +12,14 @@ import {
 import { createUuid } from "../utils";
 import { AnyAttribute, AttributeCreate } from "../types/attributes";
 import { DatabaseUnit, DatabaseUnitCreate } from "../types/units";
-import { insertUnit, retrieveUnit, updateUnit } from "./queries/unit.queries";
+import {
+  deleteUnit,
+  insertUnit,
+  retrieveUnit,
+  updateUnit
+} from "./queries/unit.queries";
 import { Client } from "pg";
+import { findOneOrMany } from "./queries/queries.utils";
 export class PsqlClient {
   sql: Client;
 
@@ -39,6 +47,13 @@ export class PsqlClient {
     return attributeMappingId;
   }
 
+  public async deleteAttributeMapping(attributeMappingId: uuid) {
+    console.debug('Attempting to delete attribute mapping ' + attributeMappingId)
+    const deleted = await deleteAttributeMapping(this.sql, attributeMappingId);
+    if (!deleted) throw new Error("Failed to delete attribute mapping with id " + attributeMappingId);
+    return true;
+  }
+
   public async insertAttribute<TAttribute extends AnyAttribute>(attribute: AttributeCreate<TAttribute>) {
     console.debug('Attempting to insert attribute of type ' + attribute.type)
     const attributeId = createUuid();
@@ -57,6 +72,13 @@ export class PsqlClient {
     const updated = await updateAttribute(this.sql, attributeId, update);
     if (!updated) throw new Error("Failed to update attribute with id " + attributeId);
     return attributeId;
+  }
+
+  public async deleteAttribute<TAttribute extends AnyAttribute>(attributeMapping: AttributeMapping) {
+    console.debug('Attempting to delete attribute ' + attributeMapping[1])
+    const deleted = await deleteAttribute(this.sql, attributeMapping);
+    if (!deleted) throw new Error("Failed to delete attribute with id " + attributeMapping[1]);
+    return true;
   }
 
   public async insertUnit(unit: DatabaseUnitCreate) {
@@ -79,5 +101,15 @@ export class PsqlClient {
     return unitId;
   }
 
-  // TODO: implement deletion
+  public async deleteUnit(unitId: uuid) {
+    console.debug('Attempting to delete unit ' + unitId)
+    const deleted = await deleteUnit(this.sql, unitId);
+    if (!deleted) throw new Error("Failed to delete unit " + unitId);
+    return true;
+  }
+
+  public async findUnits(conditions: Conditions<DatabaseUnit>, onlyOne = false) {
+    console.debug("Attempting to find unit fulfilling conditions " + JSON.stringify(conditions))
+    return await findOneOrMany<DatabaseUnit>(this.sql, "unit", conditions, onlyOne);
+  }
 }

@@ -5,6 +5,7 @@ import {
 import { AttributeMapping, uuid } from "../../types/database";
 import { Client } from "pg";
 import {
+  deleteOne,
   insertOne,
   selectOne, updateOne
 } from "./queries.utils";
@@ -21,6 +22,10 @@ export const retrieveAttributeMapping = async (sql: Client, attributeMappingId: 
 // never allow updating a mapping's attribute_type without changing its attribute_id. May cause type mismatch
 export const updateAttributeMapping = async (sql: Client, attributeMappingId: uuid, attributeType: AttributeType, attributeId: uuid) => {
   return await updateOne(sql, "attributes_map", attributeMappingId, {attributeType, attributeId})
+}
+
+export const deleteAttributeMapping = async (sql: Client, attributeMappingId: uuid,) => {
+  return await deleteOne(sql, "attributes_map", attributeMappingId)
 }
 
 export const insertAttribute = async (sql: Client, attributeId: uuid, attribute: AttributeCreate<AnyAttribute>) => {
@@ -42,4 +47,8 @@ export const updateAttribute = async <TAttribute extends AnyAttribute>(sql: Clie
 
   const table = `attribute_${update.type}`;
   return await insertOne(sql, table, attributeId, update, ["type"]);
+}
+
+export const deleteAttribute = async (sql: Client, attributeMapping: AttributeMapping) => {
+  return await deleteOne(sql, `attribute_${attributeMapping[0]}`, attributeMapping[1])
 }

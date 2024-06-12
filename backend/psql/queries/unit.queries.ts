@@ -1,6 +1,7 @@
 import { DatabaseUnit, DatabaseUnitCreate } from "../../types/units";
-import { uuid } from "../../types/database";
+import { Conditions, uuid } from "../../types/database";
 import {
+  deleteOne, findMany, findOne,
   insertOne,
   selectOne,
   updateOne
@@ -17,4 +18,8 @@ export const retrieveUnit = async (sql: Client, unitId: uuid) => {
 
 export const updateUnit = async (sql: Client, unitId: uuid, update: Partial<DatabaseUnit>) => {
   return await updateOne(sql, "unit", unitId, update);
+}
+
+export const deleteUnit = async (sql: Client, unitId: uuid) => {
+  return await deleteOne(sql, "unit", unitId)
 }

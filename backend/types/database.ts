@@ -33,3 +33,7 @@ export interface DatabaseShared {
   fetchUnit: (unitId: uuid) => Promise<Unit | null>;
   addAttributeToUnit: <TAttribute extends AnyAttribute>(unitId: uuid, createAttributeOrId: AttributeCreate<TAttribute> | uuid) => Promise<Unit | null>
 }
+
+export type Conditions <TEntity extends object> = {
+  [k in keyof TEntity]?: TEntity[k];
+};

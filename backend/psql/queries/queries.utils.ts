@@ -1,6 +1,6 @@
 import { snakeCase, camelCase } from "lodash";
 import { Client } from "pg";
-import { uuid } from "../../types/database";
+import { Conditions, uuid } from "../../types/database";
 
 export const stringifyValue = (value: unknown | undefined | null): string => {
   const t = typeof value;
@@ -46,8 +46,18 @@ export const formatUpdatePayload = (columns: string[], values: string[]) => {
   return columns.map((col, i) => `${col} = ${values[i]}`).join(', ')
 }
 
-export const formatRawResponse = <TEntity extends Record<string, unknown>>(raw: Record<string, unknown>) => {
+export const formatRawResponse = <TEntity extends Record<string, unknown>>(raw: Record<string, unknown>): TEntity => {
   return Object.fromEntries(Object.entries(raw).map(([key, value]) => [camelCase(key), value])) as TEntity;
+}
+
+export const formatConditions = <TEntity extends Record<string, unknown>>(conditions: Conditions<TEntity>) => {
+  return Object.entries(conditions).map(([key, value]) => {
+    const column = snakeCase(key);
+    if(typeof value === "object" && Array.isArray(value)) {
+      return value.map(item => `position(${stringifyValue(item)} in ${column})>0`).join(" AND ");
+    }
+    return `${column} = ${stringifyValue(value)}`
+  }).join(" AND ")
 }
 
 export const insertOne = async <TEntity extends Record<string, unknown>>(
@@ -80,6 +90,34 @@ export const selectOne = async <TEntity extends object>(sql: Client, table: stri
   }
 }
 
+export const findMany = async <TEntity extends object>(sql: Client, table: string, conditions: Conditions<TEntity>): Promise<TEntity[] | null> => {
+  try {
+    const res = await sql.query(`SELECT * from ${table} WHERE ${formatConditions(conditions)}`)
+    return res.rows ? res.rows.map(row => formatRawResponse<TEntity>(row)) : null;
+  } catch(e) {
+    console.error(e);
+    return null;
+  }
+}
+
+export const findOne = async <TEntity extends object>(sql: Client, table: string, conditions: Conditions<TEntity>): Promise<TEntity | null> => {
+  const entities = await findMany<TEntity>(sql, table, conditions);
+  return entities && entities[0] ? entities[0] : null;
+}
+
+export const findOneOrMany = async <
+  TEntity extends object,
+  TOnly extends boolean
+>(
+  sql: Client,
+  table: string,
+  conditions: Conditions<TEntity>,
+  onlyOne: TOnly
+): Promise<(TOnly extends true ? TEntity : TEntity[]) | null> => {
+  if (onlyOne) return await findOne(sql, table, conditions);
+  return await findMany(sql, table, conditions);
+}
+
 export const updateOne = async <TEntity extends Record<string, unknown>>(
   sql: Client,
   table: string,
@@ -100,5 +138,14 @@ export const updateOne = async <TEntity extends Record<string, unknown>>(
     console.error(e)
     return false;
   }
+}
 
+export const deleteOne = async (sql: Client, table: string, entityId: uuid, idColumnName = "id", only = true) => {
+  try {
+    await sql.query(`DELETE FROM ${only ? "ONLY " : ""}${table} WHERE ${idColumnName} => '${entityId}'`)
+    return true;
+  } catch (e) {
+    console.error(e)
+    return false;
+  }
 }
